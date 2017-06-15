@@ -57,22 +57,22 @@ $inputXML = @"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NewUser"
         mc:Ignorable="d"
-        Title="New User" Height="335.166" Width="271.536" ResizeMode="CanMinimize" Topmost="True">
-    <Grid HorizontalAlignment="Left" Width="264">
-        <Label Content="First Name" HorizontalAlignment="Left" VerticalAlignment="Top" Height="26" Width="67" Margin="1,6,0,0"/>
-        <TextBox x:Name="FirstName" HorizontalAlignment="Left" Height="23" TextWrapping="Wrap" VerticalAlignment="Top" Width="156" Margin="92,10,0,0"/>
-        <Label Content="Last Name" HorizontalAlignment="Left" Margin="1,37,0,0" VerticalAlignment="Top" Height="26" Width="68"/>
-        <TextBox x:Name="LastName" HorizontalAlignment="Left" Height="23" Margin="92,41,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="156"/>
-        <Label Content="Password" HorizontalAlignment="Left" Margin="1,68,0,0" VerticalAlignment="Top" Height="26" Width="68" RenderTransformOrigin="0.655,-0.372"/>
-        <TextBox x:Name="Password" HorizontalAlignment="Left" Height="23" Margin="92,72,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="156"/>
-        <Label Content="Location" HorizontalAlignment="Left" Margin="1,99,0,0" VerticalAlignment="Top" Height="26" Width="67"/>
-        <ComboBox x:Name="Location" HorizontalAlignment="Left" Margin="92,103,0,0" VerticalAlignment="Top" Width="156" Height="22" SelectedIndex="0">
-            <ComboBoxItem Content="UK" HorizontalAlignment="Left" Width="154"/>
-            <ComboBoxItem Content="US" HorizontalAlignment="Left" Width="154"/>
+        Title="New User" Height="383.832" Width="326.869" ResizeMode="CanMinimize" Topmost="True">
+    <Grid HorizontalAlignment="Left" Width="312">
+        <Label Content="First Name" HorizontalAlignment="Left" VerticalAlignment="Top" Height="26" Width="67" Margin="10,6,0,0"/>
+        <TextBox x:Name="FirstName" Height="23" TextWrapping="Wrap" VerticalAlignment="Top" Margin="92,10,13,0" Grid.ColumnSpan="2"/>
+        <Label Content="Last Name" HorizontalAlignment="Left" Margin="10,37,0,0" VerticalAlignment="Top" Height="26" Width="68"/>
+        <TextBox x:Name="LastName" HorizontalAlignment="Left" Height="23" Margin="92,41,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="207" Grid.ColumnSpan="2"/>
+        <Label Content="Password" HorizontalAlignment="Left" Margin="10,68,0,0" VerticalAlignment="Top" Height="26" Width="68" RenderTransformOrigin="0.655,-0.372"/>
+        <TextBox x:Name="Password" HorizontalAlignment="Left" Height="23" Margin="92,72,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="207" Grid.ColumnSpan="2"/>
+        <Label Content="Location" HorizontalAlignment="Left" Margin="10,101,0,0" VerticalAlignment="Top" Height="26" Width="67"/>
+        <ComboBox x:Name="Location" HorizontalAlignment="Left" Margin="92,103,0,0" VerticalAlignment="Top" Width="207" Height="22" SelectedIndex="0" Grid.ColumnSpan="2">
+            <ComboBoxItem Content="UK" HorizontalAlignment="Left" Width="207"/>
+            <ComboBoxItem Content="US" HorizontalAlignment="Left" Width="207"/>
         </ComboBox>
-        <Label Content="Messages:" HorizontalAlignment="Left" Margin="1,130,0,0" VerticalAlignment="Top" Height="26" Width="64"/>
-        <TextBox x:Name="Messages" Height="105" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="238" IsReadOnly="True" IsReadOnlyCaretVisible="True"/>
-        <Button x:Name="CreateBtn" Content="Create User" HorizontalAlignment="Left" Margin="10,271,0,0" VerticalAlignment="Top" Width="238" Height="20"/>
+        <Label Content="Messages:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top" Height="26" Width="64"/>
+        <TextBox x:Name="Messages" Height="149" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="289" IsReadOnly="True" IsReadOnlyCaretVisible="True" Grid.ColumnSpan="2"/>
+        <Button x:Name="CreateBtn" Content="Create User" HorizontalAlignment="Left" Margin="10,315,0,0" VerticalAlignment="Top" Width="289" Height="20" Grid.ColumnSpan="2"/>
     </Grid>
 </Window>
 "@
@@ -92,7 +92,7 @@ $reader = (New-Object System.Xml.XmlNodeReader $xaml)
 try {$Form = [Windows.Markup.XamlReader]::Load( $reader )}
 catch {Write-Host "Unable to load Windows.Markup.XamlReader. Double-check syntax and ensure .net is installed."}
 
-$xaml.SelectNodes("//*[@Name]") | % {Set-Variable -Name "WPF$($_.Name)" -Value $Form.FindName($_.Name)}
+$xaml.SelectNodes("//*[@Name]") | ForEach-Object {Set-Variable -Name "WPF$($_.Name)" -Value $Form.FindName($_.Name)}
 
 Function Get-FormVariables {
     if ($global:ReadmeDisplay -ne $true) {Write-host "If you need to reference this display again, run Get-FormVariables" -ForegroundColor Yellow; $global:ReadmeDisplay = $true}
@@ -152,20 +152,8 @@ function Add-NewUser {
 }
 
 #===========================================================================
-# Validation functions
+# Other functions
 #===========================================================================
-
-function GetEmptyFields {
-    # Returns a collection of empty fields
-    $emptyFields = @()
-
-    ForEach ($field in $WPFFirstName, $WPFLastName, $WPFPassword) {
-        if ($field.Text -eq "") {
-            $emptyFields += $field.name
-        }
-    }
-    return $emptyFields
-}
 
 function GetPasswordErrors {
     $errors = @()
@@ -187,31 +175,47 @@ function GetPasswordErrors {
 function Button_Click {
     $WPFCreateBtn.IsEnabled = $false
     $WPFLocation.IsEnabled = $false
+    $WPFFirstName.IsReadOnly = $true
+    $WPFLastName.IsReadOnly = $true
+    $WPFPassword.IsReadOnly = $true
     Add-NewUser
 }
 
 function Update-FormValidation {
     # $WPFMessages.Text = "Steps:`n"
     $WPFMessages.Text = ""
-    $emptyFields = GetEmptyFields
-    $passwordErrors = GetPasswordErrors
+    $hasError = $false
 
-    if ($emptyFields.length -gt 0) {
-        $WPFCreateBtn.IsEnabled = $false
-        forEach ($fieldName in $emptyFields) {
-            $WPFMessages.Text += "Enter a ${fieldName}`n"
+    # show errors if firstname or lastname are empty, or have symbols in them
+    forEach ($field in @($WPFFirstName, $WPFLastName)) {
+        if ($field.Text.length -eq 0) {
+            $hasError = $true
+            $WPFMessages.Text += "Please enter a $($field.name)`n"
+        }
+        elseif ($field.Text -match "[^a-zA-Z0-9]+") {
+            $hasError = $true
+            $WPFMessages.Text += "$($field.name) cannot contain symbols`n"
         }
     }
 
     # if the password box isn't empty, show validation errors when applicable
-    if (($passwordErrors.length -gt 0) -and ($emptyFields -notcontains "Password")) {
-        $WPFCreateBtn.IsEnabled = $false
+    $passwordErrors = GetPasswordErrors
+
+    if ($WPFPassword.Text.length -eq 0) {
+        $hasError = $true
+        $WPFMessages.Text += "Please enter a Password`n"
+    }
+    elseif ($passwordErrors.length -gt 0) {
+        $hasError = $true
         forEach ($passwordError in $passwordErrors) {
             $WPFMessages.Text += "$passwordError`n"
         }
     }
 
-    if (($emptyFields.length -eq 0) -and ($passwordErrors.length -eq 0)) {
+    if ($hasError) {
+        $WPFCreateBtn.IsEnabled = $false
+    }
+    else {
         $WPFCreateBtn.IsEnabled = $true
         $WPFMessages.Text += 'Click "Create User"'
     }
@@ -227,7 +231,7 @@ Update-FormValidation
 $WPFCreateBtn.Add_Click( {Button_Click} )
 
 forEach ($field in @($WPFFirstName, $WPFLastName, $WPFPassword)) {
-    $field.add_TextChanged( { Update-FormValidation })
+    $field.add_TextChanged( { Update-FormValidation } )
 }
 
 #===========================================================================
