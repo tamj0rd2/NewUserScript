@@ -57,7 +57,7 @@ $inputXML = @"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NewUser"
         mc:Ignorable="d"
-        Title="New User" Height="335.166" Width="271.536" ResizeMode="CanMinimize">
+        Title="New User" Height="335.166" Width="271.536" ResizeMode="CanMinimize" Topmost="True">
     <Grid HorizontalAlignment="Left" Width="264">
         <Label Content="First Name" HorizontalAlignment="Left" VerticalAlignment="Top" Height="26" Width="67" Margin="1,6,0,0"/>
         <TextBox x:Name="FirstName" HorizontalAlignment="Left" Height="23" TextWrapping="Wrap" VerticalAlignment="Top" Width="156" Margin="92,10,0,0"/>
@@ -71,7 +71,7 @@ $inputXML = @"
             <ComboBoxItem Content="US" HorizontalAlignment="Left" Width="154"/>
         </ComboBox>
         <Label Content="Messages:" HorizontalAlignment="Left" Margin="1,130,0,0" VerticalAlignment="Top" Height="26" Width="64"/>
-        <TextBox x:Name="Messages" Height="105" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="238" IsReadOnly="True" IsReadOnlyCaretVisible="True" Text="Enter a FirstName"/>
+        <TextBox x:Name="Messages" Height="105" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="238" IsReadOnly="True" IsReadOnlyCaretVisible="True"/>
         <Button x:Name="CreateBtn" Content="Create User" HorizontalAlignment="Left" Margin="10,271,0,0" VerticalAlignment="Top" Width="238" Height="20"/>
     </Grid>
 </Window>
@@ -113,25 +113,7 @@ function AvailableLicenses {
     }
 }
 
-function GetEmptyFields {
-    # Returns a collection of empty fields, otherwise false
-    $emptyFields = @()
-
-    ForEach ($field in $WPFFirstName, $WPFLastName, $WPFPassword) {
-        if ($field.Text -eq "") {
-            $emptyFields += $field.name
-        }
-    }
-
-    if ($emptyFields.length -gt 0) {
-        return $emptyFields
-    }
-    else {
-        return $false
-    }
-}
-
-function CreateUser {
+function Add-NewUser {
     $FirstName = $WPFFirstName.Text
     $LastName = $WPFLastName.Text
     $Password = $WPFPassword.Text
@@ -170,39 +152,66 @@ function CreateUser {
 }
 
 #===========================================================================
+# Validation functions
+#===========================================================================
+
+function GetEmptyFields {
+    # Returns a collection of empty fields
+    $emptyFields = @()
+
+    ForEach ($field in $WPFFirstName, $WPFLastName, $WPFPassword) {
+        if ($field.Text -eq "") {
+            $emptyFields += $field.name
+        }
+    }
+    return $emptyFields
+}
+
+function GetPasswordErrors {
+    $errors = @()
+    $pwLength = $WPFPassword.Text.length
+
+    if ($pwLength -lt 8) {$errors += "Password needs $(8 - $pwLength) more characters"}
+    if ($WPFPassword.Text -match "^[^0-9]+$") {$errors += "Password needs 1 number"}
+    if ($WPFPassword.Text -match "^[a-zA-Z0-9]+$") {$errors += "Password needs 1 symbol"}
+    if ($WPFPassword.Text -cmatch "^[^A-Z]+$") {$errors += "Password needs 1 uppercase letter"}
+    if ($WPFPassword.Text -cmatch "^[^a-z]+$") {$errors += "Password needs 1 lowercase letter"}
+
+    return $errors
+}
+
+#===========================================================================
 # Define event handlers
 #===========================================================================
 
 function Button_Click {
-    # Clear any existing messages
-    $WPFMessages.Text = ""
-
-    # TODO: Make sure there are available licenses
-    $licensesAvailable = AvailableLicenses
-
-    # Verify that there aren't any empty form fields
-    $unfilledInput = GetEmptyFields
-
-    if ($unfilledInput -ne $false) {
-        $WPFMessages.Text += "You forgot to enter a value in the $unfilledInput field.`n"
-    }
-    elseif ($licensesAvailable -eq $false) {
-        $WPFMessages.Text += "There are no available licenses. Speak with [REDACTED] before doing anything else.`n"
-    }
-    else { CreateUser }
+    $WPFCreateBtn.IsEnabled = $false
+    $WPFLocation.IsEnabled = $false
+    Add-NewUser
 }
 
 function Update-FormValidation {
-    $WPFMessages.Text = "Steps:`n"
-    $invalidFields = GetEmptyFields
+    # $WPFMessages.Text = "Steps:`n"
+    $WPFMessages.Text = ""
+    $emptyFields = GetEmptyFields
+    $passwordErrors = GetPasswordErrors
 
-    if ($invalidFields) {
+    if ($emptyFields.length -gt 0) {
         $WPFCreateBtn.IsEnabled = $false
-        forEach ($fieldName in $invalidFields) {
+        forEach ($fieldName in $emptyFields) {
             $WPFMessages.Text += "Enter a ${fieldName}`n"
         }
     }
-    else {
+
+    # if the password box isn't empty, show validation errors when applicable
+    if (($passwordErrors.length -gt 0) -and ($emptyFields -notcontains "Password")) {
+        $WPFCreateBtn.IsEnabled = $false
+        forEach ($passwordError in $passwordErrors) {
+            $WPFMessages.Text += "$passwordError`n"
+        }
+    }
+
+    if (($emptyFields.length -eq 0) -and ($passwordErrors.length -eq 0)) {
         $WPFCreateBtn.IsEnabled = $true
         $WPFMessages.Text += 'Click "Create User"'
     }
