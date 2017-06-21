@@ -37,7 +37,7 @@ $UserEnabled = $true
 $ADConnectSvr = "[REDACTED]"
 
 #===========================================================================
-# Hide powershell console at startup (uncomment lines during development)
+# Hide powershell console at startup (uncomment lines in production)
 #===========================================================================
 
 #$t = '[DllImport("user32.dll")] public static extern bool ShowWindow(int handle, int state);'
@@ -173,12 +173,34 @@ function GetPasswordErrors {
 #===========================================================================
 
 function Button_Click {
+    $WPFMessages.Foreground = "black"
+    $WPFMessages.Text = "Please wait..."
     $WPFCreateBtn.IsEnabled = $false
     $WPFLocation.IsEnabled = $false
     $WPFFirstName.IsReadOnly = $true
     $WPFLastName.IsReadOnly = $true
     $WPFPassword.IsReadOnly = $true
-    Add-NewUser
+    $errorMessage = ""
+
+    try {
+        Add-NewUser
+    } catch {
+        $errorMessage = $_.Exception.Message
+    } finally {
+        if ($errorMessage -eq "") {
+            $WPFMessages.Foreground = "green"
+        }
+        else {
+            $WPFMessages.Text = "User not created. Error details:`n$errorMessage"
+            $WPFMessages.Foreground = "red"
+            $WPFCreateBtn.IsEnabled = $true
+            $WPFLocation.IsEnabled = $true
+            $WPFFirstName.IsReadOnly = $false
+            $WPFLastName.IsReadOnly = $false
+            $WPFPassword.IsReadOnly = $false
+        }
+    }
+    # Sync-ADConnectTo365
 }
 
 function Update-FormValidation {
@@ -213,10 +235,12 @@ function Update-FormValidation {
     }
 
     if ($hasError) {
+        $WPFMessages.Foreground = "red"
         $WPFCreateBtn.IsEnabled = $false
     }
     else {
         $WPFCreateBtn.IsEnabled = $true
+        $WPFMessages.Foreground = "black"
         $WPFMessages.Text += 'Click "Create User"'
     }
 }
