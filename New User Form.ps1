@@ -33,7 +33,7 @@ $PasswordNeverExpires = $true
 # Whether the user should be enabled or disabled after it gets created
 $UserEnabled = $true
 
-# The server on which AD-Connect is installed
+# AD connect server. Used to push the new user to O365
 $ADConnectSvr = "[REDACTED]"
 
 #===========================================================================
@@ -103,15 +103,8 @@ Function Get-FormVariables {
 # Get-FormVariables
 
 #===========================================================================
-# Functions that get executed after Create User is clicked
+# Actually create the user :D
 #===========================================================================
-
-function AvailableLicenses {
-    Invoke-Command -ComputerName $ADConnectSvr -ScriptBlock
-    {
-        Start-ADSyncSyncCycle -PolicyType Delta
-    }
-}
 
 function Add-NewUser {
     $FirstName = $WPFFirstName.Text
@@ -168,6 +161,13 @@ function GetPasswordErrors {
     return $errors
 }
 
+function Sync-ADConnectTo365 {
+    Invoke-Command -ComputerName $ADConnectSvr -ScriptBlock {
+        start-adsyncsynccycle -PolicyType Delta
+    }
+    $WPFMessages.Text += "`nREMEMBER: You still need to license the user and add them to any required security/distribution groups"
+}
+
 #===========================================================================
 # Define event handlers
 #===========================================================================
@@ -189,6 +189,7 @@ function Button_Click {
     } finally {
         if ($errorMessage -eq "") {
             $WPFMessages.Foreground = "green"
+            Sync-ADConnectTo365
         }
         else {
             $WPFMessages.Text = "User not created. Error details:`n$errorMessage"
@@ -200,7 +201,6 @@ function Button_Click {
             $WPFPassword.IsReadOnly = $false
         }
     }
-    # Sync-ADConnectTo365
 }
 
 function Update-FormValidation {
