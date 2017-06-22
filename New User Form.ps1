@@ -6,12 +6,16 @@
 # You can configure what settings will be applied to new users below.
 
 #===========================================================================
-# Hide powershell console at startup (uncomment lines in production)
+# Hide powershell console at startup (uncomment line in production)
 #===========================================================================
 
-#$t = '[DllImport("user32.dll")] public static extern bool ShowWindow(int handle, int state);'
-#add-type -name win -member $t -namespace native
-#[native.win]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle, 0)
+function HideConsole {
+    $t = '[DllImport("user32.dll")] public static extern bool ShowWindow(int handle, int state);'
+    add-type -name win -member $t -namespace native
+    [native.win]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle, 0)
+}
+
+# HideConsole
 
 #===========================================================================
 # The XAML that controls the look of the GUI
