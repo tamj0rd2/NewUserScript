@@ -168,7 +168,6 @@ function Button_Click {
     }
 }
 
-# TODO: add validation for the location
 function Update-FormValidation {
     # $WPFMessages.Text = "Steps:`n"
     $WPFMessages.Text = ""
@@ -184,6 +183,12 @@ function Update-FormValidation {
             $hasError = $true
             $WPFMessages.Text += "$($field.name) cannot contain symbols`n"
         }
+    }
+
+    # show an error if the chosen location is blank
+    if ($WPFLocation.SelectedValue -eq "") {
+        $hasError = $true
+        $WPFMessages.Text += "Please select a Location`n"
     }
 
     # if the password box isn't empty, show validation errors when applicable
@@ -212,6 +217,16 @@ function Update-FormValidation {
 }
 
 #===========================================================================
+# Configuration
+#===========================================================================
+
+# TODO: add error checking if config.json doesn't exist
+$config = Get-Content ".\config.json" | ConvertFrom-Json
+
+# Add a default location
+$WPFLocation.Items.add("") | Out-Null
+
+#===========================================================================
 # Add event handlers
 #===========================================================================
 
@@ -224,13 +239,12 @@ forEach ($field in @($WPFFirstName, $WPFLastName, $WPFPassword)) {
     $field.add_TextChanged( { Update-FormValidation } )
 }
 
+$WPFLocation.Add_SelectionChanged( { Update-FormValidation })
+
 #===========================================================================
 # Create the form
 #===========================================================================
 
-$config = Get-Content ".\config.json" | ConvertFrom-Json
-
-# TODO: make the default location ""
 # Add the locations from the config file
 foreach ($location in $config.Locations.psobject.properties) {
     $WPFLocation.Items.add($location.Name) | out-null
