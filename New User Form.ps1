@@ -6,37 +6,6 @@
 # You can configure what settings will be applied to new users below.
 
 #===========================================================================
-# CONFIGURATION
-#===========================================================================
-
-# The base path where users' home folders are stored
-$BaseHomePath = "\\[REDACTED]\users"
-
-# Emali domain name that users should be created with
-$DomainName = "[REDACTED].com"
-
-# The drive letter that the user's home folder will be mapped to
-$HomeDrive = "Z:"
-
-# The OU where new UK users should be created (LDAP)
-$UKou = "OU=[REDACTED],DC=[REDACTED],DC=local"
-
-# The OU where new US users should be created (LDAP)
-$USou = "OU=[REDACTED],DC=[REDACTED],DC=local"
-
-# Choose if the user should be forced to change their password at next login
-$ChangePasswordAtLogon = $false
-
-# Choose if passwords should never expire
-$PasswordNeverExpires = $true
-
-# Whether the user should be enabled or disabled after it gets created
-$UserEnabled = $true
-
-# AD connect server. Used to push the new user to O365
-$ADConnectSvr = "[REDACTED]"
-
-#===========================================================================
 # Hide powershell console at startup (uncomment lines in production)
 #===========================================================================
 
@@ -66,10 +35,7 @@ $inputXML = @"
         <Label Content="Password" HorizontalAlignment="Left" Margin="10,68,0,0" VerticalAlignment="Top" Height="26" Width="68" RenderTransformOrigin="0.655,-0.372"/>
         <TextBox x:Name="Password" HorizontalAlignment="Left" Height="23" Margin="92,72,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="207" Grid.ColumnSpan="2"/>
         <Label Content="Location" HorizontalAlignment="Left" Margin="10,101,0,0" VerticalAlignment="Top" Height="26" Width="67"/>
-        <ComboBox x:Name="Location" HorizontalAlignment="Left" Margin="92,103,0,0" VerticalAlignment="Top" Width="207" Height="22" SelectedIndex="0" Grid.ColumnSpan="2">
-            <ComboBoxItem Content="UK" HorizontalAlignment="Left" Width="207"/>
-            <ComboBoxItem Content="US" HorizontalAlignment="Left" Width="207"/>
-        </ComboBox>
+        <ComboBox x:Name="Location" HorizontalAlignment="Left" Margin="92,103,0,0" VerticalAlignment="Top" Width="207" Height="22" SelectedIndex="0" Grid.ColumnSpan="2"/>
         <Label Content="Messages:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top" Height="26" Width="64"/>
         <TextBox x:Name="Messages" Height="149" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="289" IsReadOnly="True" IsReadOnlyCaretVisible="True" Grid.ColumnSpan="2"/>
         <Button x:Name="CreateBtn" Content="Create User" HorizontalAlignment="Left" Margin="10,315,0,0" VerticalAlignment="Top" Width="289" Height="20" Grid.ColumnSpan="2"/>
@@ -113,12 +79,10 @@ function Add-NewUser {
 
     $DisplayName = "$FirstName $LastName"
     $Username = "${FirstName}.${LastName}"
-    $EmailAddress = "${Username}@${DomainName}"
+    $EmailAddress = "${Username}@$($config.EmailDomain)"
     $ProxyAddress = "SMTP:${EmailAddress}"
-    $HomePath = "$BaseHomePath\${Username}"
-
-    if ($WPFLocation.SelectedValue.Content -eq "UK") { $LDAPPath = $UKou}
-    elseif ($WPFLocation.SelectedValue.Content -eq "US") { $LDAPPath = $USou}
+    $HomePath = "$($config.HomePathBase)\${Username}"
+    $LDAPPath = $config.Locations.($WPFLocation.SelectedValue)
 
     New-ADUser `
         -Name $DisplayName `
@@ -129,11 +93,11 @@ function Add-NewUser {
         -UserPrincipalName $EmailAddress `
         -EmailAddress $EmailAddress `
         -path $LDAPPath `
-        -ChangePasswordAtLogon $ChangePasswordAtLogon `
-        -PasswordNeverExpires $PasswordNeverExpires `
+        -ChangePasswordAtLogon $config.UserSettings.ChangePasswordAtNextLogon `
+        -PasswordNeverExpires $config.UserSettings.PasswordNeverExpires `
         -HomeDirectory $HomePath `
-        -HomeDrive $HomeDrive `
-        -Enabled $UserEnabled `
+        -HomeDrive "$($config.HomeDriveLetter):" `
+        -Enabled $config.UserSettings.UserIsEnabled `
         -AccountPassword (ConvertTo-SecureString -AsPlainText $Password -Force)
 
     Set-ADUser -identity $Username -Add @{ProxyAddresses = $ProxyAddress}
@@ -162,7 +126,7 @@ function GetPasswordErrors {
 }
 
 function Sync-ADConnectTo365 {
-    Invoke-Command -ComputerName $ADConnectSvr -ScriptBlock {
+    Invoke-Command -ComputerName $config.ADConnectServer -ScriptBlock {
         start-adsyncsynccycle -PolicyType Delta
     }
     $WPFMessages.Text += "`nREMEMBER: You still need to license the user and add them to any required security/distribution groups"
@@ -186,7 +150,8 @@ function Button_Click {
         Add-NewUser
     } catch {
         $errorMessage = $_.Exception.Message
-    } finally {
+    }
+    finally {
         if ($errorMessage -eq "") {
             $WPFMessages.Foreground = "green"
             Sync-ADConnectTo365
@@ -203,6 +168,7 @@ function Button_Click {
     }
 }
 
+# TODO: add validation for the location
 function Update-FormValidation {
     # $WPFMessages.Text = "Steps:`n"
     $WPFMessages.Text = ""
@@ -261,5 +227,13 @@ forEach ($field in @($WPFFirstName, $WPFLastName, $WPFPassword)) {
 #===========================================================================
 # Create the form
 #===========================================================================
+
+$config = Get-Content ".\config.json" | ConvertFrom-Json
+
+# TODO: make the default location ""
+# Add the locations from the config file
+foreach ($location in $config.Locations.psobject.properties) {
+    $WPFLocation.Items.add($location.Name) | out-null
+}
 
 $Form.ShowDialog() | out-null

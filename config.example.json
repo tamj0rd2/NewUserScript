@@ -1,0 +1,30 @@
+// INSTRUCTIONS:
+// 1. Customise the below settings
+// 2. Remove all comments (lines starting with //) from the file, including
+//    these instructions
+// 3. Save the file as "config.json"
+{
+    "ADDomain": "CONTOSO",
+    "EmailDomain": "contoso.com",
+    // remmeber to escape backslashes in your paths!
+    // e.g "\\contoso-fs01\users" will not work.
+    "HomePathBase": "\\\\contoso-fs01\\users",
+    "HomeDriveLetter": "H",
+    // can be either "365", "hybrid" or "onsite"
+    "ExchangeSetup": "hybrid",
+    // only used if ExchangeSetup is "hybrid"
+    "ADConnectServer": "contoso-adfs01",
+    "Locations": {
+        "AU": "OU=AU Users,DC=contoso,DC=local",
+        "UK": "OU=UK Users,DC=contoso,DC=local",
+        "US": "OU=US Users,DC=contoso,DC=local"
+    },
+    "UserSettings": {
+        // if true, user will be prompted for a new password on their 1st logon
+        "ChangePasswordAtNextLogon": true,
+        // if true, the user's password will never expire
+        "PasswordNeverExpires": false,
+        // if true, the user account is enabled straight away
+        "UserIsEnabled": true
+    }
+}
