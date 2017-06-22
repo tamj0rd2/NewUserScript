@@ -2,8 +2,8 @@
 # README
 #===========================================================================
 
-# This is a script to create a new user written by Tamara Jordan.
-# You can configure what settings will be applied to new users below.
+# This is a script to create new users written by Tamara Jordan.
+# You can edit the configuration that this script uses by modifying config.json
 
 #===========================================================================
 # Hide powershell console at startup (uncomment line in production)
@@ -107,7 +107,7 @@ function Add-NewUser {
     Set-ADUser -identity $Username -Add @{ProxyAddresses = $ProxyAddress}
 
     $WPFMessages.Text = "User created with the below details`n`n"
-    $WPFMessages.Text += "Username: [REDACTED]\$Username`n"
+    $WPFMessages.Text += "Username: $($config.ADDomain)\$Username`n"
     $WPFMessages.Text += "Email: $EmailAddress`n"
     $WPFMessages.Text += "Password: $Password`n"
 }
@@ -131,7 +131,8 @@ function Button_Click {
 
     try {
         Add-NewUser
-    } catch {
+    }
+    catch {
         $errorMessage = $_.Exception.Message
     }
     finally {
