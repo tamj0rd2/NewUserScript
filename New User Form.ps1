@@ -69,7 +69,7 @@ Function Get-FormVariables {
 # Get-FormVariables
 
 #===========================================================================
-# Actually create the user :D
+# Functions for user creation
 #===========================================================================
 
 function Add-NewUser {
@@ -108,23 +108,6 @@ function Add-NewUser {
     $WPFMessages.Text += "Password: $Password`n"
 }
 
-#===========================================================================
-# Other functions
-#===========================================================================
-
-function GetPasswordErrors {
-    $errors = @()
-    $pwLength = $WPFPassword.Text.length
-
-    if ($pwLength -lt 8) {$errors += "Password needs $(8 - $pwLength) more characters"}
-    if ($WPFPassword.Text -match "^[^0-9]+$") {$errors += "Password needs 1 number"}
-    if ($WPFPassword.Text -match "^[a-zA-Z0-9]+$") {$errors += "Password needs 1 symbol"}
-    if ($WPFPassword.Text -cmatch "^[^A-Z]+$") {$errors += "Password needs 1 uppercase letter"}
-    if ($WPFPassword.Text -cmatch "^[^a-z]+$") {$errors += "Password needs 1 lowercase letter"}
-
-    return $errors
-}
-
 function Sync-ADConnectTo365 {
     Invoke-Command -ComputerName $config.ADConnectServer -ScriptBlock {
         start-adsyncsynccycle -PolicyType Delta
@@ -133,17 +116,13 @@ function Sync-ADConnectTo365 {
 }
 
 #===========================================================================
-# Define event handlers
+# Event handlers
 #===========================================================================
 
 function Button_Click {
     $WPFMessages.Foreground = "black"
     $WPFMessages.Text = "Please wait..."
-    $WPFCreateBtn.IsEnabled = $false
-    $WPFLocation.IsEnabled = $false
-    $WPFFirstName.IsReadOnly = $true
-    $WPFLastName.IsReadOnly = $true
-    $WPFPassword.IsReadOnly = $true
+    DisableAll
     $errorMessage = ""
 
     try {
@@ -157,7 +136,7 @@ function Button_Click {
             Sync-ADConnectTo365
         }
         else {
-            $WPFMessages.Text = "User not created. Error details:`n$errorMessage"
+            $WPFMessages.Text = "User not created. Error details:`n`n$errorMessage"
             $WPFMessages.Foreground = "red"
             $WPFCreateBtn.IsEnabled = $true
             $WPFLocation.IsEnabled = $true
@@ -217,37 +196,87 @@ function Update-FormValidation {
 }
 
 #===========================================================================
+# Other functions
+#===========================================================================
+
+function DisableAll {
+    $WPFCreateBtn.IsEnabled = $false
+    $WPFLocation.IsEnabled = $false
+    $WPFFirstName.IsReadOnly = $true
+    $WPFLastName.IsReadOnly = $true
+    $WPFPassword.IsReadOnly = $true
+}
+
+function InitialiseFormElements {
+    # Add a default location
+    $WPFLocation.Items.add("") | Out-Null
+
+    # Add the locations from the config file
+    foreach ($location in $config.Locations.psobject.properties) {
+        $WPFLocation.Items.add($location.Name) | out-null
+    }
+
+    # Useful when there are long errors
+    $WPFMessages.VerticalScrollBarVisibility = "auto"
+}
+
+function AddEventHandlers {
+    $WPFLocation.Add_SelectionChanged( { Update-FormValidation })
+
+    forEach ($field in @($WPFFirstName, $WPFLastName, $WPFPassword)) {
+        $field.add_TextChanged( { Update-FormValidation } )
+    }
+
+    $WPFCreateBtn.Add_Click( {Button_Click} )
+
+    # run this once so that the message output is correct and button is disabled
+    Update-FormValidation
+}
+
+function GetPasswordErrors {
+    $errors = @()
+    $pwLength = $WPFPassword.Text.length
+
+    if ($pwLength -lt 8) {$errors += "Password needs $(8 - $pwLength) more characters"}
+    if ($WPFPassword.Text -match "^[^0-9]+$") {$errors += "Password needs 1 number"}
+    if ($WPFPassword.Text -match "^[a-zA-Z0-9]+$") {$errors += "Password needs 1 symbol"}
+    if ($WPFPassword.Text -cmatch "^[^A-Z]+$") {$errors += "Password needs 1 uppercase letter"}
+    if ($WPFPassword.Text -cmatch "^[^a-z]+$") {$errors += "Password needs 1 lowercase letter"}
+
+    return $errors
+}
+
+#===========================================================================
 # Configuration
 #===========================================================================
 
-# TODO: add error checking if config.json doesn't exist
-$config = Get-Content ".\config.json" | ConvertFrom-Json
-
-# Add a default location
-$WPFLocation.Items.add("") | Out-Null
-
-#===========================================================================
-# Add event handlers
-#===========================================================================
-
-# run this once so that the message output is correct and button is disabled
-Update-FormValidation
-
-$WPFCreateBtn.Add_Click( {Button_Click} )
-
-forEach ($field in @($WPFFirstName, $WPFLastName, $WPFPassword)) {
-    $field.add_TextChanged( { Update-FormValidation } )
+try {
+    $config = Get-Content ".\config.json" -ErrorAction "stop" | ConvertFrom-Json
+    $configError = $false
+}
+catch [System.Management.Automation.ItemNotFoundException] {
+    $WPFMessages.Text = $_.Exception.Message
+    $WPFMessages.Text += "`n`nYou probably forgot to rename config.example.json to config.json"
+    $configError = $true
+}
+catch [System.ArgumentException] {
+    $WPFMessages.Text = "Your config.json contains invalid syntax. Did you remember to remove the comments?"
+    $WPFMessages.Text += "`n`n$($_.Exception.Message)"
+    $configError = $true
+}
+finally {
+    if ($configError) {
+        $WPFMessages.Foreground = "red"
+        DisableAll
+    }
+    else {
+        InitialiseFormElements
+        AddEventHandlers
+    }
 }
 
-$WPFLocation.Add_SelectionChanged( { Update-FormValidation })
-
 #===========================================================================
-# Create the form
+# Show the form :)
 #===========================================================================
-
-# Add the locations from the config file
-foreach ($location in $config.Locations.psobject.properties) {
-    $WPFLocation.Items.add($location.Name) | out-null
-}
 
 $Form.ShowDialog() | out-null
