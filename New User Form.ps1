@@ -76,41 +76,59 @@ Function Get-FormVariables {
 # Functions for user creation
 #===========================================================================
 
-function Add-NewUser {
+function Get-userDetails {
     $FirstName = $WPFFirstName.Text
     $LastName = $WPFLastName.Text
-    $Password = $WPFPassword.Text
-
-    $DisplayName = "$FirstName $LastName"
     $Username = "${FirstName}.${LastName}"
     $EmailAddress = "${Username}@$($config.EmailDomain)"
-    $ProxyAddress = "SMTP:${EmailAddress}"
-    $HomePath = "$($config.HomePathBase)\${Username}"
-    $LDAPPath = $config.Locations.($WPFLocation.SelectedValue)
 
+    $userDetails = @{
+        "FirstName"    = $FirstName;
+        "LastName"     = $LastName;
+        "Password"     = $WPFPassword.Text;
+        "DisplayName"  = "$FirstName $LastName";
+        "Username"     = $Username;
+        "EmailAddress" = $EmailAddress;
+        "ProxyAddress" = "SMTP:${EmailAddress}";
+        "HomePath"     = "$($config.HomePathBase)\${Username}";
+        "LDAPPath"     = $config.Locations.($WPFLocation.SelectedValue);
+    }
+
+    return $userDetails
+}
+
+function Add-NewUser ($userDetails) {
     New-ADUser `
-        -Name $DisplayName `
-        -GivenName $FirstName `
-        -Surname   $LastName `
-        -DisplayName $DisplayName `
-        -SamAccountName $Username `
-        -UserPrincipalName $EmailAddress `
-        -EmailAddress $EmailAddress `
-        -path $LDAPPath `
+        -Name $userDetails.DisplayName `
+        -GivenName $userDetails.FirstName `
+        -Surname   $userDetails.LastName `
+        -DisplayName $userDetails.DisplayName `
+        -SamAccountName $userDetails.Username `
+        -UserPrincipalName $userDetails.EmailAddress `
+        -EmailAddress $userDetails.EmailAddress `
+        -path $userDetails.LDAPPath `
         -ChangePasswordAtLogon $config.UserSettings.ChangePasswordAtNextLogon `
         -PasswordNeverExpires $config.UserSettings.PasswordNeverExpires `
-        -HomeDirectory $HomePath `
+        -HomeDirectory $userDetails.HomePath `
         -HomeDrive "$($config.HomeDriveLetter):" `
         -ScriptPath $config.LoginScript `
         -Enabled $config.UserSettings.UserIsEnabled `
-        -AccountPassword (ConvertTo-SecureString -AsPlainText $Password -Force)
+        -AccountPassword (ConvertTo-SecureString -AsPlainText $userDetails.Password -Force)
 
-    Set-ADUser -identity $Username -Add @{ProxyAddresses = $ProxyAddress}
+    Set-ADUser -identity $userDetails.Username -Add @{ProxyAddresses = $userDetails.ProxyAddress}
 
     $WPFMessages.Text = "User created with the below details`n`n"
-    $WPFMessages.Text += "Username: $($config.ADDomain)\$Username`n"
-    $WPFMessages.Text += "Email: $EmailAddress`n"
-    $WPFMessages.Text += "Password: $Password`n"
+    $WPFMessages.Text += "Username: $($config.ADDomain)\$($userDetails.Username)`n"
+    $WPFMessages.Text += "Email: $($userDetails.EmailAddress)`n"
+    $WPFMessages.Text += "Password: $($userDetails.Password)`n"
+}
+
+function Add-HomeFolder ($userDetails) {
+    if ((Test-Path $userDetails.HomePath) -eq $false) {
+        new-item $userDetails.HomePath -type directory
+    }
+    # set full control and inheritance for the home folder and all subdirectories
+    icacls $userDetails.HomePath /grant "$($config.ADDomain)\$($userDetails.Username):(OI)(CI)F" /t
 }
 
 function Sync-ADConnectTo365 {
@@ -129,9 +147,10 @@ function Button_Click {
     $WPFMessages.Text = "Please wait..."
     DisableAll
     $errorMessage = ""
+    $userDetails = Get-UserDetails
 
     try {
-        Add-NewUser
+        Add-NewUser $userDetails
     }
     catch {
         $errorMessage = $_.Exception.Message
@@ -139,6 +158,7 @@ function Button_Click {
     finally {
         if ($errorMessage -eq "") {
             $WPFMessages.Foreground = "green"
+            Add-HomeFolder $userDetails
             Sync-ADConnectTo365
         }
         else {
