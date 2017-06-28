@@ -41,7 +41,7 @@ $inputXML = @"
         <Label Content="Location" HorizontalAlignment="Left" Margin="10,101,0,0" VerticalAlignment="Top" Height="26" Width="67"/>
         <ComboBox x:Name="Location" HorizontalAlignment="Left" Margin="92,103,0,0" VerticalAlignment="Top" Width="207" Height="22" SelectedIndex="0" Grid.ColumnSpan="2"/>
         <Label Content="Messages:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top" Height="26" Width="64"/>
-        <TextBox x:Name="Messages" Height="149" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="289" IsReadOnly="True" IsReadOnlyCaretVisible="True" Grid.ColumnSpan="2"/>
+        <TextBox x:Name="Messages" Height="149" Margin="10,161,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="289" IsReadOnly="True" IsReadOnlyCaretVisible="True" VerticalScrollBarVisibility="Auto" Grid.ColumnSpan="2"/>
         <Button x:Name="CreateBtn" Content="Create User" HorizontalAlignment="Left" Margin="10,315,0,0" VerticalAlignment="Top" Width="289" Height="20" Grid.ColumnSpan="2"/>
     </Grid>
 </Window>
@@ -221,9 +221,6 @@ function InitialiseFormElements {
     foreach ($location in $config.Locations.psobject.properties) {
         $WPFLocation.Items.add($location.Name) | out-null
     }
-
-    # Useful when there are long errors
-    $WPFMessages.VerticalScrollBarVisibility = "auto"
 }
 
 function AddEventHandlers {
