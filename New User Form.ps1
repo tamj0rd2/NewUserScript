@@ -101,6 +101,7 @@ function Add-NewUser {
         -PasswordNeverExpires $config.UserSettings.PasswordNeverExpires `
         -HomeDirectory $HomePath `
         -HomeDrive "$($config.HomeDriveLetter):" `
+        -ScriptPath $config.LoginScript `
         -Enabled $config.UserSettings.UserIsEnabled `
         -AccountPassword (ConvertTo-SecureString -AsPlainText $Password -Force)
 

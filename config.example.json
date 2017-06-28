@@ -10,6 +10,8 @@
     // e.g "\\contoso-fs01\users" will not work.
     "HomePathBase": "\\\\contoso-fs01\\users",
     "HomeDriveLetter": "H",
+    // name of the login script
+    "LoginScript": "ntlogin.bat",
     // can be either "365", "hybrid" or "onsite"
     "ExchangeSetup": "hybrid",
     // only used if ExchangeSetup is "hybrid"
