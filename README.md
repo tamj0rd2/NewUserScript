@@ -1,7 +1,7 @@
 # NewUserScript
 A PowerShell script to create new AD users
 
-## Features
+## Functionality
 * Create an AD user
 * Create and attach a mailbox
 * Maps a home drive for the user
